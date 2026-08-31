@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Phone, Heart, X, ShieldCheck } from "lucide-react";
+import { Phone, Heart, X } from "lucide-react";
 
 interface CrisisModalProps {
   isOpen: boolean;
@@ -44,11 +44,11 @@ export function CrisisModal({ isOpen, onClose }: CrisisModalProps) {
         </p>
 
         {/* Indian Emergency Helplines */}
-        <div className="space-y-2.5 mb-6">
-          {/* Tele-MANAS (Govt of India) */}
+        <div className="space-y-3 mb-6">
+          {/* Tele-MANAS (Govt of India Primary National Helpline) */}
           <a
             href="tel:14416"
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 border border-white/10 hover:border-rose-400/40 hover:bg-white/10 transition-all group"
+            className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-rose-400/40 hover:bg-white/10 transition-all group"
           >
             <div className="flex items-center gap-3">
               <Phone className="w-4 h-4 text-rose-400 shrink-0" />
@@ -60,27 +60,7 @@ export function CrisisModal({ isOpen, onClose }: CrisisModalProps) {
                 <div className="text-xs text-slate-400">Dial 14416 or 1800-891-4416 (24/7, All Indian Languages)</div>
               </div>
             </div>
-            <span className="text-xs text-rose-400 font-semibold px-3 py-1 rounded-full bg-rose-400/10 group-hover:bg-rose-400/20">
-              Call
-            </span>
-          </a>
-
-          {/* KIRAN Helpline (Govt of India) */}
-          <a
-            href="tel:18005990019"
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 border border-white/10 hover:border-rose-400/40 hover:bg-white/10 transition-all group"
-          >
-            <div className="flex items-center gap-3">
-              <Phone className="w-4 h-4 text-rose-400 shrink-0" />
-              <div>
-                <div className="text-sm font-semibold text-white flex items-center gap-2">
-                  <span>KIRAN Mental Health (Govt. of India)</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-medium">Toll-Free</span>
-                </div>
-                <div className="text-xs text-slate-400">1800-599-0019 (24/7, 13 Languages)</div>
-              </div>
-            </div>
-            <span className="text-xs text-rose-400 font-semibold px-3 py-1 rounded-full bg-rose-400/10 group-hover:bg-rose-400/20">
+            <span className="text-xs text-rose-400 font-semibold px-3 py-1.5 rounded-full bg-rose-400/10 group-hover:bg-rose-400/20">
               Call
             </span>
           </a>
@@ -88,7 +68,7 @@ export function CrisisModal({ isOpen, onClose }: CrisisModalProps) {
           {/* Vandrevala Foundation */}
           <a
             href="tel:+919999666555"
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 border border-white/10 hover:border-rose-400/40 hover:bg-white/10 transition-all group"
+            className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-rose-400/40 hover:bg-white/10 transition-all group"
           >
             <div className="flex items-center gap-3">
               <Phone className="w-4 h-4 text-rose-400 shrink-0" />
@@ -97,7 +77,7 @@ export function CrisisModal({ isOpen, onClose }: CrisisModalProps) {
                 <div className="text-xs text-slate-400">+91 9999 666 555 (24/7 Free Counseling)</div>
               </div>
             </div>
-            <span className="text-xs text-rose-400 font-semibold px-3 py-1 rounded-full bg-rose-400/10 group-hover:bg-rose-400/20">
+            <span className="text-xs text-rose-400 font-semibold px-3 py-1.5 rounded-full bg-rose-400/10 group-hover:bg-rose-400/20">
               Call
             </span>
           </a>
@@ -105,16 +85,16 @@ export function CrisisModal({ isOpen, onClose }: CrisisModalProps) {
           {/* AASRA Helpline */}
           <a
             href="tel:+919820466726"
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-white/5 border border-white/10 hover:border-rose-400/40 hover:bg-white/10 transition-all group"
+            className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-rose-400/40 hover:bg-white/10 transition-all group"
           >
             <div className="flex items-center gap-3">
               <Phone className="w-4 h-4 text-rose-400 shrink-0" />
               <div>
                 <div className="text-sm font-semibold text-white">AASRA Suicide Prevention</div>
-                <div className="text-xs text-slate-400">+91 9820466726 (24/7)</div>
+                <div className="text-xs text-slate-400">+91 9820466726 (24/7 Crisis Support)</div>
               </div>
             </div>
-            <span className="text-xs text-rose-400 font-semibold px-3 py-1 rounded-full bg-rose-400/10 group-hover:bg-rose-400/20">
+            <span className="text-xs text-rose-400 font-semibold px-3 py-1.5 rounded-full bg-rose-400/10 group-hover:bg-rose-400/20">
               Call
             </span>
           </a>
