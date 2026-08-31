@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, RotateCcw, Sparkles } from "lucide-react";
+import { RotateCcw, Sparkles } from "lucide-react";
 import { Secret } from "@/types";
 import { SecretCard } from "./SecretCard";
 
@@ -52,26 +52,26 @@ export function SecretDeck({
   // If all cards swiped
   if (!currentSecret || currentIndex >= activeSecrets.length) {
     return (
-      <div className="w-full max-w-sm mx-auto h-[68vh] min-h-[460px] max-h-[620px] flex flex-col items-center justify-center p-8 text-center bg-sanctuary-card border border-sanctuary-cardBorder rounded-[28px] shadow-2xl space-y-5 animate-fade-in">
-        <div className="w-14 h-14 rounded-full bg-sanctuary-accent/20 text-sanctuary-accent flex items-center justify-center">
-          <Sparkles className="w-7 h-7" />
+      <div className="w-full max-w-sm mx-auto h-[60vh] min-h-[400px] flex flex-col items-center justify-center p-6 text-center bg-sanctuary-card border border-sanctuary-cardBorder rounded-[28px] shadow-2xl space-y-4 animate-fade-in my-auto">
+        <div className="w-12 h-12 rounded-full bg-sanctuary-accent/20 text-sanctuary-accent flex items-center justify-center">
+          <Sparkles className="w-6 h-6" />
         </div>
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold text-white">You have witnessed all confessions</h3>
+        <div className="space-y-1.5">
+          <h3 className="text-base font-semibold text-white">You have witnessed all confessions</h3>
           <p className="text-xs text-sanctuary-textMuted leading-relaxed">
             The night is quiet. You can return to the beginning, or release something weighing on you.
           </p>
         </div>
-        <div className="flex flex-col gap-2.5 w-full pt-2">
+        <div className="flex flex-col gap-2 w-full pt-2">
           <button
             onClick={onGoToRelease}
-            className="w-full py-3.5 rounded-2xl bg-sanctuary-accent hover:bg-sanctuary-accent/90 text-xs font-semibold text-white transition-all shadow-lg"
+            className="w-full py-3 rounded-2xl bg-sanctuary-accent hover:bg-sanctuary-accent/90 text-xs font-semibold text-white transition-all shadow-lg"
           >
             Release a Secret ✦
           </button>
           <button
             onClick={handleResetDeck}
-            className="w-full py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300 flex items-center justify-center gap-2 transition-colors"
+            className="w-full py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300 flex items-center justify-center gap-2 transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             Rewatch Confessions
@@ -82,9 +82,9 @@ export function SecretDeck({
   }
 
   return (
-    <div className="w-full max-w-sm sm:max-w-md mx-auto flex flex-col items-center justify-center px-3 py-1">
-      {/* Swipeable Card Stack Container with Flexible Responsive Dimensions */}
-      <div className="w-full h-[68vh] min-h-[480px] max-h-[620px] relative">
+    <div className="w-full max-w-sm sm:max-w-md mx-auto h-full flex flex-col items-center justify-center px-3 py-2">
+      {/* Swipeable Card Stack Container (Calculated to fit 100% inside screen) */}
+      <div className="w-full h-[64vh] min-h-[420px] max-h-[580px] relative">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSecret.id}
@@ -102,9 +102,9 @@ export function SecretDeck({
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={0.7}
             onDragEnd={(_, info) => {
-              if (info.offset.x > 100) {
+              if (info.offset.x > 90) {
                 handleNext("right");
-              } else if (info.offset.x < -100) {
+              } else if (info.offset.x < -90) {
                 handleNext("left");
               }
             }}
@@ -114,32 +114,10 @@ export function SecretDeck({
               onToggleFeltThis={onToggleFeltThis}
               onOpenLetterModal={onOpenLetterModal}
               onOpenReportModal={onOpenReportModal}
+              onSkip={() => handleNext("left")}
             />
           </motion.div>
         </AnimatePresence>
-      </div>
-
-      {/* Accessible Deck Controls */}
-      <div className="w-full mt-3 flex items-center justify-between px-4">
-        {/* Skip (Left) */}
-        <button
-          onClick={() => handleNext("left")}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 hover:bg-white/10 text-xs font-medium text-sanctuary-textMuted hover:text-white transition-all"
-          aria-label="Skip to next secret"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Skip</span>
-        </button>
-
-        {/* Empathy & Advance (Right) */}
-        <button
-          onClick={() => handleNext("right")}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-sanctuary-accent/20 hover:bg-sanctuary-accent/30 border border-sanctuary-accent/30 text-xs font-semibold text-sanctuary-accent transition-all"
-          aria-label="Relate and advance"
-        >
-          <span>Relate</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
       </div>
     </div>
   );
