@@ -85,7 +85,7 @@ export function useSanctuaryStore() {
         }
         setUserSession(session);
 
-        // Load Secrets
+        // Load Secrets from Supabase & Merge with Starter Liquidity Seeds
         const supabase = getSupabaseClient();
         if (supabase) {
           setIsCloudConnected(true);
@@ -95,7 +95,7 @@ export function useSanctuaryStore() {
             .eq("status", "ACTIVE")
             .order("created_at", { ascending: false });
 
-          if (!error && remoteSecrets && remoteSecrets.length > 0) {
+          if (!error && remoteSecrets) {
             const mapped: Secret[] = remoteSecrets.map((r: any) => ({
               id: r.id,
               content: r.content,
@@ -113,8 +113,16 @@ export function useSanctuaryStore() {
                 authorRepliedAt: l.author_replied_at,
               })),
             }));
-            setSecrets(mapped);
-            localStorage.setItem(STORAGE_KEY_SECRETS, JSON.stringify(mapped));
+
+            // Merge live cloud secrets with starter liquidity seeds (ensuring rich discovery for all users)
+            const remoteIds = new Set(mapped.map((s) => s.id));
+            const merged = [
+              ...mapped,
+              ...INITIAL_SEEDS.filter((seed) => !remoteIds.has(seed.id)),
+            ];
+
+            setSecrets(merged);
+            localStorage.setItem(STORAGE_KEY_SECRETS, JSON.stringify(merged));
           } else {
             loadLocalSecrets();
           }
