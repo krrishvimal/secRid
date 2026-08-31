@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { RotateCcw, Sparkles } from "lucide-react";
 import { Secret } from "@/types";
 import { SecretCard } from "./SecretCard";
@@ -82,43 +82,81 @@ export function SecretDeck({
   }
 
   return (
-    <div className="w-full max-w-sm sm:max-w-md mx-auto h-full flex flex-col items-center justify-center px-3 py-2">
-      {/* Swipeable Card Stack Container (Calculated to fit 100% inside screen) */}
-      <div className="w-full h-[64vh] min-h-[420px] max-h-[580px] relative">
+    <div className="w-full max-w-sm sm:max-w-md mx-auto h-full flex flex-col items-center justify-center px-3 py-2 select-none">
+      {/* Swipeable Card Stack Container */}
+      <div className="w-full h-[64vh] min-h-[420px] max-h-[580px] relative touch-none">
         <AnimatePresence mode="wait">
-          <motion.div
+          <CardMotionWrapper
             key={currentSecret.id}
-            initial={{ scale: 0.95, opacity: 0, y: 15 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{
-              x: exitDirection === "left" ? -350 : exitDirection === "right" ? 350 : 0,
-              opacity: 0,
-              scale: 0.9,
-              transition: { duration: 0.25 },
-            }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="w-full h-full cursor-grab active:cursor-grabbing"
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.7}
-            onDragEnd={(_, info) => {
-              if (info.offset.x > 90) {
-                handleNext("right");
-              } else if (info.offset.x < -90) {
-                handleNext("left");
-              }
-            }}
-          >
-            <SecretCard
-              secret={currentSecret}
-              onToggleFeltThis={onToggleFeltThis}
-              onOpenLetterModal={onOpenLetterModal}
-              onOpenReportModal={onOpenReportModal}
-              onSkip={() => handleNext("left")}
-            />
-          </motion.div>
+            secret={currentSecret}
+            exitDirection={exitDirection}
+            onSwipe={handleNext}
+            onToggleFeltThis={onToggleFeltThis}
+            onOpenLetterModal={onOpenLetterModal}
+            onOpenReportModal={onOpenReportModal}
+          />
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+// Dedicated Card Motion Wrapper with Tactile Physics & High-Sensitivity Touch Tracking
+function CardMotionWrapper({
+  secret,
+  exitDirection,
+  onSwipe,
+  onToggleFeltThis,
+  onOpenLetterModal,
+  onOpenReportModal,
+}: {
+  secret: Secret;
+  exitDirection: "left" | "right" | null;
+  onSwipe: (direction: "left" | "right") => void;
+  onToggleFeltThis: (id: string) => void;
+  onOpenLetterModal: (secret: Secret) => void;
+  onOpenReportModal: (id: string) => void;
+}) {
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-200, 200], [-15, 15]);
+  const opacity = useTransform(x, [-250, -150, 0, 150, 250], [0.4, 0.9, 1, 0.9, 0.4]);
+
+  return (
+    <motion.div
+      style={{ x, rotate, opacity, touchAction: "none" }}
+      initial={{ scale: 0.95, opacity: 0, y: 15 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      exit={{
+        x: exitDirection === "left" ? -400 : exitDirection === "right" ? 400 : 0,
+        opacity: 0,
+        scale: 0.85,
+        transition: { duration: 0.22 },
+      }}
+      transition={{ type: "spring", stiffness: 350, damping: 28 }}
+      className="w-full h-full cursor-grab active:cursor-grabbing touch-none select-none"
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.8}
+      dragMomentum={false}
+      onDragEnd={(_, info) => {
+        const offset = info.offset.x;
+        const velocity = info.velocity.x;
+
+        // High sensitivity touch response across ANY part of the screen
+        if (offset > 50 || velocity > 250) {
+          onSwipe("right");
+        } else if (offset < -50 || velocity < -250) {
+          onSwipe("left");
+        }
+      }}
+    >
+      <SecretCard
+        secret={secret}
+        onToggleFeltThis={onToggleFeltThis}
+        onOpenLetterModal={onOpenLetterModal}
+        onOpenReportModal={onOpenReportModal}
+        onSkip={() => onSwipe("left")}
+      />
+    </motion.div>
   );
 }

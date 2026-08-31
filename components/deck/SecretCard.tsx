@@ -33,7 +33,7 @@ export function SecretCard({
   }
 
   return (
-    <div className="w-full h-full flex flex-col justify-between p-4 sm:p-6 rounded-[28px] bg-gradient-to-b from-[#151924] to-[#0D1017] border border-[#232A3B] shadow-2xl relative overflow-hidden select-none">
+    <div className="w-full h-full flex flex-col justify-between p-4 sm:p-6 rounded-[28px] bg-gradient-to-b from-[#151924] to-[#0D1017] border border-[#232A3B] shadow-2xl relative overflow-hidden select-none touch-none">
       {/* Subtle Ambient Radial Glow */}
       <div className="absolute -top-24 -left-24 w-52 h-52 bg-sanctuary-accent/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-24 -right-24 w-52 h-52 bg-sanctuary-rose/10 rounded-full blur-3xl pointer-events-none" />
@@ -67,8 +67,8 @@ export function SecretCard({
         )}
       </div>
 
-      {/* 2. Hero Secret Text (Scrollable for long confessions) */}
-      <div className="flex-1 min-h-0 my-auto py-2 z-10 flex flex-col justify-center overflow-y-auto px-1">
+      {/* 2. Hero Secret Text */}
+      <div className="flex-1 min-h-0 my-auto py-2 z-10 flex flex-col justify-center overflow-y-auto px-1 pointer-events-none">
         <p
           className={`${fontClasses} text-slate-100 font-serif text-center font-normal tracking-wide`}
         >
@@ -84,7 +84,7 @@ export function SecretCard({
       </div>
 
       {/* 3. Primary Action Bar */}
-      <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between gap-2 z-10 shrink-0">
+      <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between gap-2 z-10 shrink-0 pointer-events-auto">
         {/* Skip Action */}
         {onSkip && (
           <button
