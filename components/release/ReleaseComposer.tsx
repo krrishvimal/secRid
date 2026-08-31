@@ -1,15 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sparkles, AlertCircle, Heart, Lock, Check } from "lucide-react";
+import { Sparkles, AlertCircle, Lock, Check, ShieldCheck } from "lucide-react";
 import { IntentType, INTENT_CONFIGS } from "@/types";
 import { evaluateSafety } from "@/lib/safety";
 
 interface ReleaseComposerProps {
-  onRelease: (content: string, intent: IntentType) => void;
+  onRelease: (content: string, intent: IntentType) => { success: boolean; errorReason?: string };
   onTriggerCrisis: () => void;
-  isAuthenticated: boolean;
-  onRequireAuth: () => void;
   onSuccess: () => void;
 }
 
@@ -23,8 +21,6 @@ const PROMPTS = [
 export function ReleaseComposer({
   onRelease,
   onTriggerCrisis,
-  isAuthenticated,
-  onRequireAuth,
   onSuccess,
 }: ReleaseComposerProps) {
   const [content, setContent] = useState("");
@@ -41,12 +37,6 @@ export function ReleaseComposer({
   const handleRelease = () => {
     setErrorMsg(null);
 
-    // Require lightweight auth
-    if (!isAuthenticated) {
-      onRequireAuth();
-      return;
-    }
-
     if (isTooShort) {
       setErrorMsg("Please write at least 50 characters so others can understand your context.");
       return;
@@ -57,7 +47,7 @@ export function ReleaseComposer({
       return;
     }
 
-    // Safety and crisis evaluation
+    // Pre-Publication Safety, PII, and Crisis screening
     const safety = evaluateSafety(content);
     if (!safety.passed) {
       if (safety.isCrisis) {
@@ -70,7 +60,13 @@ export function ReleaseComposer({
 
     setIsReleasing(true);
     setTimeout(() => {
-      onRelease(content, selectedIntent);
+      const result = onRelease(content, selectedIntent);
+      if (!result.success) {
+        setIsReleasing(false);
+        setErrorMsg(result.errorReason || "Failed to release. Please try again.");
+        return;
+      }
+
       setIsReleasing(false);
       setIsDone(true);
       setTimeout(() => {
@@ -78,21 +74,21 @@ export function ReleaseComposer({
         setContent("");
         onSuccess();
       }, 1500);
-    }, 600);
+    }, 400);
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto px-4 py-4 space-y-5 animate-fade-in">
+    <div className="w-full max-w-lg mx-auto px-4 py-4 space-y-4 animate-fade-in">
       {/* Header */}
-      <div className="text-center space-y-1.5 pt-2">
+      <div className="text-center space-y-1.5 pt-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sanctuary-accent/15 border border-sanctuary-accent/25 text-sanctuary-accent text-[11px] font-medium">
           <Sparkles className="w-3.5 h-3.5" />
           <span>Release into the Night</span>
         </div>
-        <h2 className="text-xl font-semibold text-white tracking-tight">
+        <h2 className="text-lg sm:text-xl font-semibold text-white tracking-tight">
           Say what you can&apos;t say anywhere else
         </h2>
-        <p className="text-xs text-sanctuary-textMuted italic">
+        <p className="text-xs text-sanctuary-textMuted italic px-2">
           &ldquo;{PROMPTS[promptIndex]}&rdquo;
         </p>
       </div>
@@ -110,19 +106,19 @@ export function ReleaseComposer({
       ) : (
         <>
           {/* Main Writing Canvas */}
-          <div className="relative bg-sanctuary-card border border-sanctuary-cardBorder rounded-3xl p-5 shadow-xl space-y-4">
+          <div className="relative bg-sanctuary-card border border-sanctuary-cardBorder rounded-3xl p-4 sm:p-5 shadow-xl space-y-3">
             <textarea
               value={content}
               onChange={(e) => {
                 setContent(e.target.value);
                 if (errorMsg) setErrorMsg(null);
               }}
-              placeholder="Start writing without filter. No name will be attached to your words..."
-              rows={8}
-              className="w-full bg-transparent text-sm sm:text-base text-slate-100 placeholder:text-sanctuary-textFaint focus:outline-none resize-none leading-relaxed"
+              placeholder="Start writing without filter. No account or identity is required..."
+              rows={7}
+              className="w-full bg-transparent text-sm text-slate-100 placeholder:text-sanctuary-textFaint focus:outline-none resize-none leading-relaxed"
             />
 
-            <div className="flex items-center justify-between pt-3 border-t border-white/5 text-[11px]">
+            <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
               <span
                 className={`${
                   isTooShort || isTooLong ? "text-sanctuary-rose" : "text-sanctuary-textMuted"
@@ -131,18 +127,18 @@ export function ReleaseComposer({
                 {charCount} / 1500 {isTooShort && "(min 50)"}
               </span>
               <div className="flex items-center gap-1.5 text-sanctuary-textFaint">
-                <Lock className="w-3 h-3 text-sanctuary-accent" />
-                <span>100% Peer-to-Peer Anonymous</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400/90" />
+                <span>100% Zero-Identity Anonymous</span>
               </div>
             </div>
           </div>
 
           {/* Intent Selector */}
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             <label className="text-xs font-semibold text-slate-300 block px-1">
               What do you need from strangers?
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {(Object.keys(INTENT_CONFIGS) as IntentType[]).map((type) => {
                 const config = INTENT_CONFIGS[type];
                 const isSelected = selectedIntent === type;
@@ -151,17 +147,17 @@ export function ReleaseComposer({
                     key={type}
                     type="button"
                     onClick={() => setSelectedIntent(type)}
-                    className={`p-3.5 rounded-2xl text-left border transition-all ${
+                    className={`p-3 rounded-2xl text-left border transition-all ${
                       isSelected
                         ? "bg-sanctuary-accent/20 border-sanctuary-accent text-white shadow-lg shadow-sanctuary-accent/10"
                         : "bg-sanctuary-card border-sanctuary-cardBorder text-slate-300 hover:border-white/20 hover:bg-sanctuary-cardHover"
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-base">{config.emoji}</span>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm">{config.emoji}</span>
                       <span className="text-xs font-semibold">{config.label}</span>
                     </div>
-                    <p className="text-[11px] text-sanctuary-textMuted leading-tight">
+                    <p className="text-[10px] text-sanctuary-textMuted leading-tight">
                       {config.tagline}
                     </p>
                   </button>
@@ -172,7 +168,7 @@ export function ReleaseComposer({
 
           {/* Error Banner */}
           {errorMsg && (
-            <div className="flex items-center gap-2 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 animate-fade-in">
+            <div className="flex items-center gap-2 p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 animate-fade-in">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -183,7 +179,7 @@ export function ReleaseComposer({
             type="button"
             onClick={handleRelease}
             disabled={isTooShort || isTooLong || isReleasing}
-            className="w-full py-4 rounded-2xl bg-sanctuary-accent hover:bg-sanctuary-accent/90 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all shadow-xl shadow-sanctuary-accent/20"
+            className="w-full py-3.5 rounded-2xl bg-sanctuary-accent hover:bg-sanctuary-accent/90 disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all shadow-xl shadow-sanctuary-accent/20"
           >
             <Sparkles className="w-4 h-4" />
             {isReleasing ? "Releasing into the night..." : "Release Anonymously ✦"}

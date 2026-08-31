@@ -15,6 +15,8 @@ export interface UserSession {
   hasReleasedSecret: boolean;
   hasReceivedLetter: boolean;
   swipedIds: string[];
+  releaseTimestamps: number[];
+  letterTimestamps: number[];
 }
 
 export function useSanctuaryStore() {
@@ -25,6 +27,8 @@ export function useSanctuaryStore() {
     hasReleasedSecret: false,
     hasReceivedLetter: false,
     swipedIds: [],
+    releaseTimestamps: [],
+    letterTimestamps: [],
   });
   const [isLoaded, setIsLoaded] = useState(false);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
@@ -73,6 +77,8 @@ export function useSanctuaryStore() {
         const storedSession = localStorage.getItem(STORAGE_KEY_USER);
         if (storedSession) {
           session = JSON.parse(storedSession);
+          session.releaseTimestamps = session.releaseTimestamps || [];
+          session.letterTimestamps = session.letterTimestamps || [];
         } else {
           session = {
             sessionId: `anon-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -80,6 +86,8 @@ export function useSanctuaryStore() {
             hasReleasedSecret: false,
             hasReceivedLetter: false,
             swipedIds: [],
+            releaseTimestamps: [],
+            letterTimestamps: [],
           };
           localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(session));
         }
@@ -90,7 +98,7 @@ export function useSanctuaryStore() {
         if (supabase) {
           setIsCloudConnected(true);
 
-          // Check for active Supabase Auth session (Google / Magic Link)
+          // Check for active Supabase Auth session if any
           try {
             const { data: authData } = await supabase.auth.getSession();
             if (authData?.session?.user) {
@@ -237,7 +245,7 @@ export function useSanctuaryStore() {
     }
   };
 
-  // Auth bridge
+  // Optional manual auth bridge
   const authenticateUser = (email: string) => {
     const updated: UserSession = {
       ...userSession,
@@ -247,8 +255,23 @@ export function useSanctuaryStore() {
     persistUserSession(updated);
   };
 
-  // Release a new Secret
-  const releaseSecret = async (content: string, intent: IntentType): Promise<Secret> => {
+  // Release a new Secret (Rate limited: Max 3 per 24 hours)
+  const releaseSecret = (
+    content: string,
+    intent: IntentType
+  ): { success: boolean; errorReason?: string; secret?: Secret } => {
+    const now = Date.now();
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+    const recentReleases = (userSession.releaseTimestamps || []).filter((t) => t > oneDayAgo);
+
+    if (recentReleases.length >= 3) {
+      return {
+        success: false,
+        errorReason:
+          "Daily limit reached. To keep the sanctuary thoughtful, you can release up to 3 secrets every 24 hours.",
+      };
+    }
+
     const newSecret: Secret = {
       id: `secret-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       content: content.trim(),
@@ -260,39 +283,42 @@ export function useSanctuaryStore() {
       isUserAuthor: true,
     };
 
-    const updated = [newSecret, ...secrets];
-    persistSecrets(updated);
+    const updatedSecrets = [newSecret, ...secrets];
+    persistSecrets(updatedSecrets);
 
-    const updatedSession = {
+    const updatedSession: UserSession = {
       ...userSession,
       hasReleasedSecret: true,
+      releaseTimestamps: [...recentReleases, now],
     };
     persistUserSession(updatedSession);
 
-    // Sync to Supabase Cloud
+    // Sync to Supabase Cloud asynchronously
     const supabase = getSupabaseClient();
     if (supabase) {
-      try {
-        const { data } = await supabase
-          .from("secrets")
-          .insert({
-            content: newSecret.content,
-            intent: newSecret.intent,
-            author_session_id: userSession.sessionId,
-            status: "ACTIVE",
-          })
-          .select()
-          .single();
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from("secrets")
+            .insert({
+              content: newSecret.content,
+              intent: newSecret.intent,
+              author_session_id: userSession.sessionId,
+              status: "ACTIVE",
+            })
+            .select()
+            .single();
 
-        if (data && data.id) {
-          newSecret.id = data.id;
+          if (data && data.id) {
+            newSecret.id = data.id;
+          }
+        } catch (err) {
+          console.warn("Supabase background sync notice:", err);
         }
-      } catch (err) {
-        console.warn("Supabase background sync failed, saved locally:", err);
-      }
+      })();
     }
 
-    return newSecret;
+    return { success: true, secret: newSecret };
   };
 
   // Relate / "I Felt This"
@@ -323,8 +349,23 @@ export function useSanctuaryStore() {
     }
   };
 
-  // Write a Letter
-  const writeLetter = async (secretId: string, content: string): Promise<Letter> => {
+  // Write a Letter (Rate limited: Max 10 per hour)
+  const writeLetter = (
+    secretId: string,
+    content: string
+  ): { success: boolean; errorReason?: string; letter?: Letter } => {
+    const now = Date.now();
+    const oneHourAgo = now - 60 * 60 * 1000;
+    const recentLetters = (userSession.letterTimestamps || []).filter((t) => t > oneHourAgo);
+
+    if (recentLetters.length >= 10) {
+      return {
+        success: false,
+        errorReason:
+          "Letter limit reached. You can write up to 10 letters per hour to ensure each response is thoughtful.",
+      };
+    }
+
     const alias = getRandomAlias();
     const newLetter: Letter = {
       id: `letter-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -347,22 +388,30 @@ export function useSanctuaryStore() {
     });
     persistSecrets(updated);
 
+    const updatedSession: UserSession = {
+      ...userSession,
+      letterTimestamps: [...recentLetters, now],
+    };
+    persistUserSession(updatedSession);
+
     const supabase = getSupabaseClient();
     if (supabase) {
-      try {
-        await supabase.from("letters").insert({
-          secret_id: secretId,
-          responder_session_id: userSession.sessionId,
-          responder_alias: alias,
-          content: content.trim(),
-          status: "ACTIVE",
-        });
-      } catch (err) {
-        console.warn("Supabase letter sync error:", err);
-      }
+      (async () => {
+        try {
+          await supabase.from("letters").insert({
+            secret_id: secretId,
+            responder_session_id: userSession.sessionId,
+            responder_alias: alias,
+            content: content.trim(),
+            status: "ACTIVE",
+          });
+        } catch (err) {
+          console.warn("Supabase letter sync notice:", err);
+        }
+      })();
     }
 
-    return newLetter;
+    return { success: true, letter: newLetter };
   };
 
   // 1-Turn Closure Reply
@@ -455,9 +504,7 @@ export function useSanctuaryStore() {
     localStorage.setItem(STORAGE_KEY_INSTALL_PROMPT, "true");
   };
 
-  // Anti-Starvation Deck Ordering:
-  // Shows all active, non-reported secrets.
-  // Prioritizes 0-response secrets so no author is left in the void.
+  // Anti-Starvation Deck Ordering
   const getDeckSecrets = (): Secret[] => {
     return secrets
       .filter((s) => !s.isReported)

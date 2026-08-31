@@ -20,7 +20,6 @@ export default function Home() {
   const [reportSecretId, setReportSecretId] = useState<string | null>(null);
   const [isCrisisOpen, setIsCrisisOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [authActionTitle, setAuthActionTitle] = useState("Release your secret");
 
   useEffect(() => {
     setMounted(true);
@@ -28,7 +27,6 @@ export default function Home() {
 
   const {
     isLoaded,
-    userSession,
     showInstallPrompt,
     authenticateUser,
     releaseSecret,
@@ -82,18 +80,13 @@ export default function Home() {
         />
       )}
 
-      {/* 2. Release View */}
+      {/* 2. Release View (100% Instant & Anonymous Release) */}
       {activeTab === "release" && (
         <ReleaseComposer
           onRelease={(content: string, intent: IntentType) => {
-            releaseSecret(content, intent);
+            return releaseSecret(content, intent);
           }}
           onTriggerCrisis={() => setIsCrisisOpen(true)}
-          isAuthenticated={userSession.isAuthenticated}
-          onRequireAuth={() => {
-            setAuthActionTitle("release a secret");
-            setIsAuthOpen(true);
-          }}
           onSuccess={() => setActiveTab("inbox")}
         />
       )}
@@ -114,16 +107,11 @@ export default function Home() {
         secret={activeLetterSecret}
         onClose={() => setActiveLetterSecret(null)}
         onSubmitLetter={(secretId, content) => {
-          writeLetter(secretId, content);
+          return writeLetter(secretId, content);
         }}
         onTriggerCrisis={() => {
           setActiveLetterSecret(null);
           setIsCrisisOpen(true);
-        }}
-        isAuthenticated={userSession.isAuthenticated}
-        onRequireAuth={() => {
-          setAuthActionTitle("leave a letter");
-          setIsAuthOpen(true);
         }}
       />
 
@@ -143,7 +131,6 @@ export default function Home() {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         onAuthenticated={(email) => authenticateUser(email)}
-        actionTitle={authActionTitle}
       />
 
       <InstallPromptModal

@@ -9,10 +9,8 @@ interface LetterComposerModalProps {
   isOpen: boolean;
   secret: Secret | null;
   onClose: () => void;
-  onSubmitLetter: (secretId: string, content: string) => void;
+  onSubmitLetter: (secretId: string, content: string) => { success: boolean; errorReason?: string };
   onTriggerCrisis: () => void;
-  isAuthenticated: boolean;
-  onRequireAuth: () => void;
 }
 
 export function LetterComposerModal({
@@ -21,8 +19,6 @@ export function LetterComposerModal({
   onClose,
   onSubmitLetter,
   onTriggerCrisis,
-  isAuthenticated,
-  onRequireAuth,
 }: LetterComposerModalProps) {
   const [content, setContent] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -38,12 +34,6 @@ export function LetterComposerModal({
   const handleSubmit = () => {
     setErrorMsg(null);
 
-    // Require lightweight auth if not signed in
-    if (!isAuthenticated) {
-      onRequireAuth();
-      return;
-    }
-
     if (isTooShort) {
       setErrorMsg("Please write at least 30 characters to offer meaningful perspective.");
       return;
@@ -54,7 +44,7 @@ export function LetterComposerModal({
       return;
     }
 
-    // Safety & PII check
+    // Safety, PII, and Crisis check
     const safety = evaluateSafety(content);
     if (!safety.passed) {
       if (safety.isCrisis) {
@@ -67,18 +57,24 @@ export function LetterComposerModal({
 
     setIsSubmitting(true);
     setTimeout(() => {
-      onSubmitLetter(secret.id, content);
+      const result = onSubmitLetter(secret.id, content);
+      if (!result.success) {
+        setIsSubmitting(false);
+        setErrorMsg(result.errorReason || "Failed to submit letter.");
+        return;
+      }
+
       setIsSubmitting(false);
       setContent("");
       onClose();
-    }, 400);
+    }, 300);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full sm:max-w-lg bg-sanctuary-card border-t sm:border border-sanctuary-cardBorder rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl text-left max-h-[92vh] flex flex-col">
+      <div className="relative w-full sm:max-w-lg bg-sanctuary-card border-t sm:border border-sanctuary-cardBorder rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl text-left max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/5">
+        <div className="flex items-center justify-between pb-3 border-b border-white/5">
           <div className="flex items-center gap-2.5">
             <span className="text-xl">{intentConfig.emoji}</span>
             <div>
@@ -95,14 +91,14 @@ export function LetterComposerModal({
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto py-3 space-y-3">
           {/* Original Secret Excerpt */}
           <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 text-xs text-slate-400 italic line-clamp-3 leading-relaxed">
             &ldquo;{secret.content}&rdquo;
           </div>
 
           {/* Contextual Guidance */}
-          <div className="flex items-start gap-2 p-3 rounded-2xl bg-sanctuary-accent/10 border border-sanctuary-accent/20">
+          <div className="flex items-start gap-2 p-2.5 rounded-2xl bg-sanctuary-accent/10 border border-sanctuary-accent/20">
             <HeartHandshake className="w-4 h-4 text-sanctuary-accent shrink-0 mt-0.5" />
             <p className="text-xs text-slate-300 leading-relaxed">
               {intentConfig.responderGuidance}
@@ -117,11 +113,11 @@ export function LetterComposerModal({
                 setContent(e.target.value);
                 if (errorMsg) setErrorMsg(null);
               }}
-              placeholder="Write with honesty and empathy. Someone is waiting to read your words..."
-              rows={6}
-              className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm text-slate-100 placeholder:text-sanctuary-textFaint focus:outline-none focus:border-sanctuary-accent resize-none leading-relaxed transition-all"
+              placeholder="Write with honesty and empathy. No sign-in required..."
+              rows={5}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl p-3.5 text-xs sm:text-sm text-slate-100 placeholder:text-sanctuary-textFaint focus:outline-none focus:border-sanctuary-accent resize-none leading-relaxed transition-all"
             />
-            <div className="flex items-center justify-between mt-2 px-1">
+            <div className="flex items-center justify-between mt-1.5 px-1">
               <span
                 className={`text-[11px] ${
                   isTooShort || isTooLong ? "text-sanctuary-rose" : "text-sanctuary-textMuted"
@@ -129,9 +125,9 @@ export function LetterComposerModal({
               >
                 {charCount} / 1000 {isTooShort && "(min 30)"}
               </span>
-              <div className="flex items-center gap-1.5 text-[10px] text-emerald-400/90 font-medium">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                100% Real Human Letter
+              <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium">
+                <ShieldCheck className="w-3 h-3" />
+                100% Anonymous Human
               </div>
             </div>
           </div>
@@ -146,11 +142,11 @@ export function LetterComposerModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="pt-3 border-t border-white/5 flex items-center gap-3">
+        <div className="pt-3 border-t border-white/5 flex items-center gap-2.5">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300 transition-colors"
+            className="flex-1 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-xs font-medium text-slate-300 transition-colors"
           >
             Cancel
           </button>
@@ -158,7 +154,7 @@ export function LetterComposerModal({
             type="button"
             onClick={handleSubmit}
             disabled={isTooShort || isTooLong || isSubmitting}
-            className="flex-1 py-3 rounded-2xl bg-sanctuary-accent hover:bg-sanctuary-accent/90 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium text-white flex items-center justify-center gap-2 transition-all shadow-lg"
+            className="flex-1 py-2.5 rounded-2xl bg-sanctuary-accent hover:bg-sanctuary-accent/90 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium text-white flex items-center justify-center gap-2 transition-all shadow-lg"
           >
             <Send className="w-3.5 h-3.5" />
             {isSubmitting ? "Delivering..." : "Deliver Letter"}
