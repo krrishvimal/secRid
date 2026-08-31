@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Secret, Letter, IntentType } from "@/types";
 import { INITIAL_SEEDS } from "./seedData";
 import { getRandomAlias } from "./safety";
@@ -30,18 +30,52 @@ export function useSanctuaryStore() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
 
-  // Initialize from LocalStorage & Supabase
+  const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+
+  // Initialize from LocalStorage, BroadcastChannel & Supabase
   useEffect(() => {
+    // 1. Setup BroadcastChannel for Instant Multi-Tab Sync
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      const channel = new BroadcastChannel("sanctuary_realtime_sync");
+      broadcastChannelRef.current = channel;
+
+      channel.onmessage = (event) => {
+        if (event.data?.type === "SECRETS_UPDATED" && Array.isArray(event.data.secrets)) {
+          setSecrets(event.data.secrets);
+          try {
+            localStorage.setItem(STORAGE_KEY_SECRETS, JSON.stringify(event.data.secrets));
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      };
+    }
+
+    // 2. Storage event listener (standard cross-tab sync)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY_SECRETS && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setSecrets(parsed);
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
     async function initStore() {
       try {
-        // 1. Load User Session
+        // Load User Session
         let session: UserSession;
         const storedSession = localStorage.getItem(STORAGE_KEY_USER);
         if (storedSession) {
           session = JSON.parse(storedSession);
         } else {
           session = {
-            sessionId: `anon-${Math.random().toString(36).substring(2, 11)}`,
+            sessionId: `anon-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             isAuthenticated: false,
             hasReleasedSecret: false,
             hasReceivedLetter: false,
@@ -51,7 +85,7 @@ export function useSanctuaryStore() {
         }
         setUserSession(session);
 
-        // 2. Load Secrets (Check Supabase first, fallback to localStorage/Seeds)
+        // Load Secrets
         const supabase = getSupabaseClient();
         if (supabase) {
           setIsCloudConnected(true);
@@ -88,7 +122,7 @@ export function useSanctuaryStore() {
           loadLocalSecrets();
         }
 
-        // 3. Check Install Prompt
+        // Check Install Prompt
         const isDismissed = localStorage.getItem(STORAGE_KEY_INSTALL_PROMPT);
         if (!isDismissed && (session.hasReleasedSecret || session.hasReceivedLetter)) {
           setShowInstallPrompt(true);
@@ -112,6 +146,13 @@ export function useSanctuaryStore() {
     }
 
     initStore();
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+      }
+    };
   }, []);
 
   const persistSecrets = (updated: Secret[]) => {
@@ -120,6 +161,18 @@ export function useSanctuaryStore() {
       localStorage.setItem(STORAGE_KEY_SECRETS, JSON.stringify(updated));
     } catch (e) {
       console.error("Failed to persist secrets:", e);
+    }
+
+    // Broadcast in real-time to all other open tabs/windows
+    if (broadcastChannelRef.current) {
+      try {
+        broadcastChannelRef.current.postMessage({
+          type: "SECRETS_UPDATED",
+          secrets: updated,
+        });
+      } catch (err) {
+        console.error("Broadcast error:", err);
+      }
     }
   };
 
@@ -164,15 +217,24 @@ export function useSanctuaryStore() {
     };
     persistUserSession(updatedSession);
 
-    // Sync to Supabase if connected
+    // Sync to Supabase Cloud
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        await supabase.from("secrets").insert({
-          content: newSecret.content,
-          intent: newSecret.intent,
-          author_session_id: userSession.sessionId,
-        });
+        const { data, error } = await supabase
+          .from("secrets")
+          .insert({
+            content: newSecret.content,
+            intent: newSecret.intent,
+            author_session_id: userSession.sessionId,
+            status: "ACTIVE",
+          })
+          .select()
+          .single();
+
+        if (data && data.id) {
+          newSecret.id = data.id;
+        }
       } catch (err) {
         console.warn("Supabase background sync failed, saved locally:", err);
       }
@@ -241,6 +303,7 @@ export function useSanctuaryStore() {
           responder_session_id: userSession.sessionId,
           responder_alias: alias,
           content: content.trim(),
+          status: "ACTIVE",
         });
       } catch (err) {
         console.warn("Supabase letter sync error:", err);
@@ -340,10 +403,12 @@ export function useSanctuaryStore() {
     localStorage.setItem(STORAGE_KEY_INSTALL_PROMPT, "true");
   };
 
-  // Anti-Starvation Deck Ordering
+  // Anti-Starvation Deck Ordering:
+  // Shows all active, non-reported secrets.
+  // Prioritizes 0-response secrets so no author is left in the void.
   const getDeckSecrets = (): Secret[] => {
     return secrets
-      .filter((s) => !s.isReported && s.authorSessionId !== userSession.sessionId)
+      .filter((s) => !s.isReported)
       .sort((a, b) => {
         const scoreA = (1 / (1 + a.letters.length)) * 2.5 + (a.rawFeltCount > 0 ? 0.5 : 0);
         const scoreB = (1 / (1 + b.letters.length)) * 2.5 + (b.rawFeltCount > 0 ? 0.5 : 0);
