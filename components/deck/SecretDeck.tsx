@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
-import { RotateCcw, Sparkles } from "lucide-react";
+import { RotateCcw, Sparkles, Heart, ArrowLeft } from "lucide-react";
 import { Secret } from "@/types";
 import { SecretCard } from "./SecretCard";
 
@@ -28,6 +28,7 @@ export function SecretDeck({
 
   const activeSecrets = secrets;
   const currentSecret = activeSecrets[currentIndex];
+  const nextSecret = activeSecrets[currentIndex + 1];
 
   const handleNext = (direction: "left" | "right") => {
     if (!currentSecret) return;
@@ -42,7 +43,7 @@ export function SecretDeck({
     setTimeout(() => {
       setExitDirection(null);
       setCurrentIndex((prev) => prev + 1);
-    }, 200);
+    }, 220);
   };
 
   const handleResetDeck = () => {
@@ -83,10 +84,23 @@ export function SecretDeck({
 
   return (
     <div className="w-full max-w-sm sm:max-w-md mx-auto h-full flex flex-col items-center justify-center px-3 py-2 select-none">
-      {/* Swipeable Card Stack Container */}
-      <div className="w-full h-[64vh] min-h-[420px] max-h-[580px] relative touch-none">
-        <AnimatePresence mode="wait">
-          <CardMotionWrapper
+      {/* 2-Card Stack Container (Tinder/Bumble Physical Deck Architecture) */}
+      <div className="w-full h-[64vh] min-h-[420px] max-h-[580px] relative">
+        {/* Next Card (Stacked Underneath with scale & depth) */}
+        {nextSecret && (
+          <div className="absolute inset-0 scale-[0.93] translate-y-3.5 opacity-60 pointer-events-none rounded-[28px] overflow-hidden transition-all duration-300">
+            <SecretCard
+              secret={nextSecret}
+              onToggleFeltThis={() => {}}
+              onOpenLetterModal={() => {}}
+              onOpenReportModal={() => {}}
+            />
+          </div>
+        )}
+
+        {/* Top Active Card with 60fps Spring Physics & Stamp Overlays */}
+        <AnimatePresence mode="popLayout">
+          <ActiveTinderCard
             key={currentSecret.id}
             secret={currentSecret}
             exitDirection={exitDirection}
@@ -101,8 +115,8 @@ export function SecretDeck({
   );
 }
 
-// Dedicated Card Motion Wrapper with Tactile Physics & High-Sensitivity Touch Tracking
-function CardMotionWrapper({
+// 60FPS Tinder/Bumble Active Card with Live Stamp Badges & Spring Physics
+function ActiveTinderCard({
   secret,
   exitDirection,
   onSwipe,
@@ -118,38 +132,66 @@ function CardMotionWrapper({
   onOpenReportModal: (id: string) => void;
 }) {
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 200], [-15, 15]);
-  const opacity = useTransform(x, [-250, -150, 0, 150, 250], [0.4, 0.9, 1, 0.9, 0.4]);
+
+  // Dynamic transforms directly tied to drag position
+  const rotate = useTransform(x, [-250, 250], [-18, 18]);
+  const opacity = useTransform(x, [-300, -180, 0, 180, 300], [0, 1, 1, 1, 0]);
+
+  // Stamp badge opacities
+  const relateStampOpacity = useTransform(x, [20, 90], [0, 1]);
+  const skipStampOpacity = useTransform(x, [-20, -90], [0, 1]);
 
   return (
     <motion.div
       style={{ x, rotate, opacity, touchAction: "none" }}
-      initial={{ scale: 0.95, opacity: 0, y: 15 }}
+      initial={{ scale: 0.94, opacity: 0.8, y: 10 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
       exit={{
-        x: exitDirection === "left" ? -400 : exitDirection === "right" ? 400 : 0,
+        x: exitDirection === "left" ? -500 : exitDirection === "right" ? 500 : 0,
+        rotate: exitDirection === "left" ? -25 : exitDirection === "right" ? 25 : 0,
         opacity: 0,
-        scale: 0.85,
-        transition: { duration: 0.22 },
+        transition: { duration: 0.22, ease: "easeOut" },
       }}
-      transition={{ type: "spring", stiffness: 350, damping: 28 }}
-      className="w-full h-full cursor-grab active:cursor-grabbing touch-none select-none"
+      transition={{ type: "spring", stiffness: 400, damping: 26 }}
+      className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing touch-none select-none z-20"
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.8}
+      dragElastic={0.9}
       dragMomentum={false}
       onDragEnd={(_, info) => {
         const offset = info.offset.x;
         const velocity = info.velocity.x;
 
-        // High sensitivity touch response across ANY part of the screen
-        if (offset > 50 || velocity > 250) {
+        // Quick flick velocity or smooth distance threshold
+        if (offset > 60 || velocity > 200) {
           onSwipe("right");
-        } else if (offset < -50 || velocity < -250) {
+        } else if (offset < -60 || velocity < -200) {
           onSwipe("left");
         }
       }}
     >
+      {/* Live "RELATE" Stamp Overlay on Right Drag */}
+      <motion.div
+        style={{ opacity: relateStampOpacity }}
+        className="absolute top-6 left-6 z-30 pointer-events-none px-4 py-1.5 rounded-xl border-2 border-emerald-400 bg-emerald-950/80 backdrop-blur-sm -rotate-12 shadow-lg shadow-emerald-500/20"
+      >
+        <div className="flex items-center gap-1.5 text-emerald-300 font-extrabold text-xs tracking-wider uppercase">
+          <Heart className="w-3.5 h-3.5 fill-emerald-400" />
+          <span>I Felt This</span>
+        </div>
+      </motion.div>
+
+      {/* Live "SKIP" Stamp Overlay on Left Drag */}
+      <motion.div
+        style={{ opacity: skipStampOpacity }}
+        className="absolute top-6 right-6 z-30 pointer-events-none px-4 py-1.5 rounded-xl border-2 border-rose-400 bg-rose-950/80 backdrop-blur-sm rotate-12 shadow-lg shadow-rose-500/20"
+      >
+        <div className="flex items-center gap-1.5 text-rose-300 font-extrabold text-xs tracking-wider uppercase">
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Skip</span>
+        </div>
+      </motion.div>
+
       <SecretCard
         secret={secret}
         onToggleFeltThis={onToggleFeltThis}
