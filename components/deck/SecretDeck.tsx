@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
-import { ArrowLeft, ArrowRight, RotateCcw, Sparkles, Heart } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, ArrowRight, RotateCcw, Sparkles } from "lucide-react";
 import { Secret } from "@/types";
 import { SecretCard } from "./SecretCard";
 
@@ -52,7 +52,7 @@ export function SecretDeck({
   // If all cards swiped
   if (!currentSecret || currentIndex >= activeSecrets.length) {
     return (
-      <div className="w-full max-w-sm mx-auto h-[68vh] flex flex-col items-center justify-center p-8 text-center bg-sanctuary-card border border-sanctuary-cardBorder rounded-[28px] shadow-2xl space-y-5 animate-fade-in">
+      <div className="w-full max-w-sm mx-auto h-[68vh] min-h-[460px] max-h-[620px] flex flex-col items-center justify-center p-8 text-center bg-sanctuary-card border border-sanctuary-cardBorder rounded-[28px] shadow-2xl space-y-5 animate-fade-in">
         <div className="w-14 h-14 rounded-full bg-sanctuary-accent/20 text-sanctuary-accent flex items-center justify-center">
           <Sparkles className="w-7 h-7" />
         </div>
@@ -82,9 +82,9 @@ export function SecretDeck({
   }
 
   return (
-    <div className="w-full max-w-sm sm:max-w-md mx-auto flex flex-col items-center justify-center px-4 py-2">
-      {/* Swipeable Card Stack Container */}
-      <div className="w-full h-[66vh] relative">
+    <div className="w-full max-w-sm sm:max-w-md mx-auto flex flex-col items-center justify-center px-3 py-1">
+      {/* Swipeable Card Stack Container with Flexible Responsive Dimensions */}
+      <div className="w-full h-[68vh] min-h-[480px] max-h-[620px] relative">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentSecret.id}
@@ -120,7 +120,7 @@ export function SecretDeck({
       </div>
 
       {/* Accessible Deck Controls */}
-      <div className="w-full mt-4 flex items-center justify-between px-6">
+      <div className="w-full mt-3 flex items-center justify-between px-4">
         {/* Skip (Left) */}
         <button
           onClick={() => handleNext("left")}
