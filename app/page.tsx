@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ActiveTab, Secret, IntentType } from "@/types";
 import { useSanctuaryStore } from "@/lib/store";
 import { AppShell } from "@/components/layout/AppShell";
@@ -14,12 +14,17 @@ import { AuthModal } from "@/components/auth/AuthModal";
 import { InstallPromptModal } from "@/components/pwa/InstallPromptModal";
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("deck");
   const [activeLetterSecret, setActiveLetterSecret] = useState<Secret | null>(null);
   const [reportSecretId, setReportSecretId] = useState<string | null>(null);
   const [isCrisisOpen, setIsCrisisOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authActionTitle, setAuthActionTitle] = useState("Release your secret");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const {
     isLoaded,
@@ -38,7 +43,7 @@ export default function Home() {
     getAuthorSecrets,
   } = useSanctuaryStore();
 
-  if (!isLoaded) {
+  if (!mounted || !isLoaded) {
     return (
       <div className="min-h-[100dvh] w-full bg-sanctuary-dark flex items-center justify-center text-slate-400">
         <div className="flex flex-col items-center gap-3">
