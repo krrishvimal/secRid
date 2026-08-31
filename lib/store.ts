@@ -32,7 +32,7 @@ export function useSanctuaryStore() {
 
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
-  // Initialize from LocalStorage, BroadcastChannel & Supabase
+  // Initialize from LocalStorage, BroadcastChannel & Supabase Auth/DB
   useEffect(() => {
     // 1. Setup BroadcastChannel for Instant Multi-Tab Sync
     if (typeof window !== "undefined" && "BroadcastChannel" in window) {
@@ -68,7 +68,7 @@ export function useSanctuaryStore() {
 
     async function initStore() {
       try {
-        // Load User Session
+        // Load User Session from Storage
         let session: UserSession;
         const storedSession = localStorage.getItem(STORAGE_KEY_USER);
         if (storedSession) {
@@ -85,10 +85,30 @@ export function useSanctuaryStore() {
         }
         setUserSession(session);
 
-        // Load Secrets from Supabase & Merge with Starter Liquidity Seeds
+        // Supabase Auth & Cloud Database Integration
         const supabase = getSupabaseClient();
         if (supabase) {
           setIsCloudConnected(true);
+
+          // Check for active Supabase Auth session (Google / Magic Link)
+          try {
+            const { data: authData } = await supabase.auth.getSession();
+            if (authData?.session?.user) {
+              const u = authData.session.user;
+              session = {
+                ...session,
+                sessionId: u.id,
+                isAuthenticated: true,
+                userEmail: u.email,
+              };
+              setUserSession(session);
+              localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(session));
+            }
+          } catch (authErr) {
+            console.warn("Auth check error:", authErr);
+          }
+
+          // Fetch Cloud Secrets
           const { data: remoteSecrets, error } = await supabase
             .from("secrets")
             .select("*, letters(*)")
@@ -114,7 +134,7 @@ export function useSanctuaryStore() {
               })),
             }));
 
-            // Merge live cloud secrets with starter liquidity seeds (ensuring rich discovery for all users)
+            // Merge cloud secrets with starter liquidity seeds
             const remoteIds = new Set(mapped.map((s) => s.id));
             const merged = [
               ...mapped,
@@ -155,10 +175,34 @@ export function useSanctuaryStore() {
 
     initStore();
 
+    // Supabase Auth State Change Listener
+    const supabase = getSupabaseClient();
+    let authListenerSubscription: any = null;
+    if (supabase) {
+      const { data } = supabase.auth.onAuthStateChange((_event, authSession) => {
+        if (authSession?.user) {
+          setUserSession((prev) => {
+            const updated = {
+              ...prev,
+              sessionId: authSession.user.id,
+              isAuthenticated: true,
+              userEmail: authSession.user.email,
+            };
+            localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(updated));
+            return updated;
+          });
+        }
+      });
+      authListenerSubscription = data.subscription;
+    }
+
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       if (broadcastChannelRef.current) {
         broadcastChannelRef.current.close();
+      }
+      if (authListenerSubscription) {
+        authListenerSubscription.unsubscribe();
       }
     };
   }, []);
@@ -229,7 +273,7 @@ export function useSanctuaryStore() {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from("secrets")
           .insert({
             content: newSecret.content,
